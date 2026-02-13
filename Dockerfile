@@ -12,12 +12,11 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# **SOLUCIÓN MPM: Remover físicamente los módulos conflictivos**
-RUN rm -f /etc/apache2/mods-enabled/mpm_event.load \
-          /etc/apache2/mods-enabled/mpm_event.conf \
-          /etc/apache2/mods-enabled/mpm_worker.load \
-          /etc/apache2/mods-enabled/mpm_worker.conf \
-    && a2enmod mpm_prefork
+# **SOLUCIÓN MPM: Eliminar TODOS los archivos de MPM y crear solo prefork**
+RUN rm -rf /etc/apache2/mods-enabled/mpm_*.load \
+           /etc/apache2/mods-enabled/mpm_*.conf \
+    && ln -s /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf \
+    && ln -s /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load
 
 # Copiar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -31,7 +30,7 @@ COPY . /var/www/html
 # Instalar dependencias de Composer
 RUN composer install --no-dev --optimize-autoloader
 
-# Configurar DocumentRoot para Laravel (apuntar a /public)
+# Configurar DocumentRoot para Laravel
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
     /etc/apache2/sites-available/*.conf \
