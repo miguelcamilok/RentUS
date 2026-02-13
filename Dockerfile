@@ -1,6 +1,6 @@
 FROM php:8.2-apache
 
-# Instalar dependencias
+# Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -20,6 +20,9 @@ WORKDIR /var/www/html
 
 # Copiar archivos del proyecto
 COPY . /var/www/html
+
+# Crear .env desde las variables de entorno de Railway (no usar .env.example)
+# Railway inyectará las variables automáticamente
 
 # Instalar dependencias de Composer
 RUN composer install --no-dev --optimize-autoloader
@@ -46,4 +49,3 @@ EXPOSE 80
 
 # Usar el entrypoint personalizado
 ENTRYPOINT ["docker-entrypoint.sh"]
-
