@@ -12,6 +12,13 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# **SOLUCIÓN MPM: Remover físicamente los módulos conflictivos**
+RUN rm -f /etc/apache2/mods-enabled/mpm_event.load \
+          /etc/apache2/mods-enabled/mpm_event.conf \
+          /etc/apache2/mods-enabled/mpm_worker.load \
+          /etc/apache2/mods-enabled/mpm_worker.conf \
+    && a2enmod mpm_prefork
+
 # Copiar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
@@ -23,10 +30,6 @@ COPY . /var/www/html
 
 # Instalar dependencias de Composer
 RUN composer install --no-dev --optimize-autoloader
-
-# **SOLUCIÓN MPM: Deshabilitar todos los MPM y habilitar solo prefork**
-RUN a2dismod mpm_event mpm_worker || true \
-    && a2enmod mpm_prefork
 
 # Configurar DocumentRoot para Laravel (apuntar a /public)
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
