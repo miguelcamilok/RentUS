@@ -185,67 +185,54 @@ class MailService
         try {
             $subject = 'Confirma tu cuenta - ' . config('app.name');
 
+            // ← AGREGAR ESTO: Generar URL de verificación
+            $verificationUrl = config('app.frontend_url') . '/confirm-email?token=' . $verificationCode->token . '&email=' . urlencode($user->email);
+
             $body = "
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset='UTF-8'>
-                <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-                <title>{$subject}</title>
-                {$this->getCommonStyles()}
-            </head>
-            <body>
-                <div class='email-container'>
-                    <div class='email-header'>
-                        <div class='logo'>" . config('app.name') . "</div>
-                        <h1>¡Bienvenido a nuestra comunidad!</h1>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='UTF-8'>
+            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+            <title>{$subject}</title>
+            {$this->getCommonStyles()}
+        </head>
+        <body>
+            <div class='email-container'>
+                <!-- ... header ... -->
+
+                <div class='email-content'>
+                    <div class='greeting'>
+                        Hola <strong>{$user->name}</strong>,
                     </div>
 
-                    <div class='email-content'>
-                        <div class='greeting'>
-                            Hola <strong>{$user->name}</strong>,
-                        </div>
+                    <p>Gracias por registrarte en <strong>" . config('app.name') . "</strong>.</p>
 
-                        <p>Gracias por registrarte en <strong>" . config('app.name') . "</strong>. Estamos emocionados de tenerte con nosotros.</p>
+                    <p>Para activar tu cuenta, ingresa el siguiente código:</p>
 
-                        <p>Para activar tu cuenta y comenzar a disfrutar de todos nuestros servicios, por favor ingresa el siguiente código de verificación:</p>
-
-                        <div class='code-container'>
-                            <div class='code'>{$verificationCode->code}</div>
-                        </div>
-
-                        <div class='instructions'>
-                            <h3>📋 Instrucciones:</h3>
-                            <ul>
-                                <li>Ve a la página de verificación en nuestra aplicación</li>
-                                <li>Ingresa el código de 6 dígitos mostrado arriba</li>
-                                <li>Haz clic en 'Verificar' para activar tu cuenta</li>
-                            </ul>
-                        </div>
-
-                        <div class='expiry-notice'>
-                            ⏰ <strong>Importante:</strong> Este código expira en 10 minutos
-                        </div>
-
-                        <div class='warning-box'>
-                            <h4>🔒 Seguridad:</h4>
-                            <ul>
-                                <li>Nunca compartas este código con nadie</li>
-                                <li>Nuestro equipo nunca te pedirá este código</li>
-                                <li>Si no solicitaste este registro, ignora este correo</li>
-                            </ul>
-                        </div>
+                    <div class='code-container'>
+                        <div class='code'>{$verificationCode->code}</div>
                     </div>
 
-                    <div class='footer'>
-                        <p>Este es un correo automático, por favor no respondas.</p>
-                        <p>Si necesitas ayuda, contacta a nuestro equipo de soporte.</p>
-                        <p>© " . date('Y') . " " . config('app.name') . ". Todos los derechos reservados.</p>
+                    <!-- ← AGREGAR ESTO: Botón con link -->
+                    <div style='text-align: center; margin: 30px 0;'>
+                        <a href='{$verificationUrl}' class='action-button'>
+                            Verificar mi cuenta
+                        </a>
                     </div>
+
+                    <div class='expiry-notice'>
+                        ⏰ <strong>Importante:</strong> Este código expira en 10 minutos
+                    </div>
+
+                    <!-- ... resto del contenido ... -->
                 </div>
-            </body>
-            </html>
-            ";
+
+                <!-- ... footer ... -->
+            </div>
+        </body>
+        </html>
+        ";
 
             Mail::html($body, function ($message) use ($user, $subject) {
                 $message->to($user->email, $user->name)
