@@ -21,9 +21,6 @@ WORKDIR /var/www/html
 # Copiar archivos del proyecto
 COPY . /var/www/html
 
-# Crear .env desde las variables de entorno de Railway (no usar .env.example)
-# Railway inyectará las variables automáticamente
-
 # Instalar dependencias de Composer
 RUN composer install --no-dev --optimize-autoloader
 
@@ -44,8 +41,8 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Exponer puerto
-EXPOSE 80
+# Railway asigna dinámicamente el puerto
+# No usar EXPOSE con un número fijo
 
 # Usar el entrypoint personalizado
 ENTRYPOINT ["docker-entrypoint.sh"]

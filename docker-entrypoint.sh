@@ -13,7 +13,13 @@ a2enmod mpm_prefork
 echo "Currently enabled MPM modules:"
 ls -la /etc/apache2/mods-enabled/mpm_* 2>/dev/null || echo "No MPM symlinks found"
 
-# Ejecutar migraciones si es necesario (opcional, comenta si no quieres auto-migrar)
+# Configurar el puerto desde la variable de entorno PORT de Railway
+PORT=${PORT:-80}
+echo "Configuring Apache to listen on port $PORT..."
+sed -i "s/Listen 80/Listen $PORT/" /etc/apache2/ports.conf
+sed -i "s/:80>/:$PORT>/" /etc/apache2/sites-available/*.conf
+
+# Ejecutar migraciones si es necesario
 echo "Running migrations..."
 php artisan migrate --force || echo "Migrations failed or not needed"
 
@@ -30,5 +36,5 @@ php artisan route:cache
 php artisan view:cache
 
 # Ejecutar el comando original de Apache
-echo "Starting Apache..."
+echo "Starting Apache on port $PORT..."
 exec apache2-foreground
