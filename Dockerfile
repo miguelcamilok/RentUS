@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     zip \
     curl \
-    && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd
+    && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copiar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -23,7 +24,12 @@ COPY . /var/www/html
 # Instalar dependencias de Composer
 RUN composer install --no-dev --optimize-autoloader
 
-# Configurar Apache Document Root
+# **SOLUCIÓN MPM: Deshabilitar todos los MPM y habilitar solo prefork**
+RUN a2dismod mpm_event mpm_worker || true \
+    && a2enmod mpm_prefork
+
+# Configurar DocumentRoot para Laravel (apuntar a /public)
+ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
     /etc/apache2/sites-available/*.conf \
     /etc/apache2/apache2.conf
@@ -31,11 +37,9 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
 # Habilitar mod_rewrite
 RUN a2enmod rewrite
 
-# **SOLUCIÓN: Deshabilitar MPM conflictivos y habilitar solo mpm_prefork**
-RUN a2dismod mpm_event mpm_worker && a2enmod mpm_prefork
-
 # Configurar permisos
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
 # Exponer puerto
 EXPOSE 80
