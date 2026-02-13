@@ -94,3 +94,4 @@ php artisan view:cache
 # Iniciar Apache
 echo "Starting Apache on port $PORT..."
 exec apache2-foreground
+
