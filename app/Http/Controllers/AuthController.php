@@ -43,20 +43,7 @@ class AuthController extends Controller
             'address' => 'required|string|max:255|min:5',
             'id_documento' => 'required|string|max:50|unique:users,id_documento',
         ], [
-            'name.required' => 'El nombre es obligatorio',
-            'name.min' => 'El nombre debe tener al menos 2 caracteres',
-            'phone.required' => 'El teléfono es obligatorio',
-            'phone.regex' => 'El teléfono debe contener entre 10 y 20 dígitos',
-            'phone.unique' => 'Este teléfono ya está registrado',
-            'email.required' => 'El correo electrónico es obligatorio',
-            'email.email' => 'Debe ingresar un correo válido',
-            'email.unique' => 'Este correo ya está registrado',
-            'password.required' => 'La contraseña es obligatoria',
-            'password.min' => 'La contraseña debe tener al menos 8 caracteres',
-            'address.required' => 'La dirección es obligatoria',
-            'address.min' => 'La dirección debe tener al menos 5 caracteres',
-            'id_documento.required' => 'El documento de identidad es obligatorio',
-            'id_documento.unique' => 'Este documento ya está registrado',
+            // ... mensajes de validación ...
         ]);
 
         if ($validator->fails()) {
@@ -78,57 +65,71 @@ class AuthController extends Controller
                 'password_hash' => Hash::make($request->password),
                 'address' => $request->address,
                 'id_documento' => $request->id_documento,
-                'status' => 'inactive', // Usuario inactivo hasta verificar correo
-                'verification_status' => 'pending',
-                'role' => 'user', // ← ROL POR DEFECTO
+                'status' => 'active', // ← TEMPORAL: Ya activado
+                'verification_status' => 'verified', // ← TEMPORAL: Ya verificado
+                'email_verified_at' => now(), // ← TEMPORAL: Ya verificado
+                'role' => 'user',
             ]);
 
-            // Generar código de verificación
+            // Generar código de verificación (aunque no se envíe)
             $verificationCode = $this->verificationService->generateCode(
                 $user->email,
                 'email_verification'
             );
 
-            // Enviar correo de verificación (SOLO CÓDIGO)
-            $emailSent = $this->mailService->sendConfirmationEmail($user, $verificationCode);
+            // ===== TEMPORAL: COMENTAR EL ENVÍO DE CORREO =====
+            /*
+        // Enviar correo de verificación
+        $emailSent = $this->mailService->sendConfirmationEmail($user, $verificationCode);
 
-            if (!$emailSent) {
-                DB::rollBack();
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Error al enviar el correo de verificación. Intenta nuevamente.'
-                ], 500);
-            }
+        if (!$emailSent) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al enviar el correo de verificación.'
+            ], 500);
+        }
+        */
+
+            Log::info('⚠️ MODO DEBUG: Envío de correo deshabilitado', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'code' => $verificationCode->code,
+            ]);
 
             DB::commit();
 
+            // ===== TEMPORAL: Login automático sin verificación =====
+            $token = $this->tokenService->generateToken($user, false);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Usuario registrado exitosamente. Por favor, verifica tu correo electrónico.',
+                'message' => '⚠️ MODO DEBUG: Usuario registrado sin verificación de correo',
+                'token' => $token, // ← Devolver token para login automático
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'status' => $user->status,
+                    'verification_status' => $user->verification_status,
+                ],
                 'data' => [
-                    'user' => [
-                        'id' => $user->id,
-                        'name' => $user->name,
-                        'email' => $user->email,
-                        'verification_status' => $user->verification_status,
-                        'role' => $user->role,
-                    ],
-                    'verification_required' => true,
-                    'verification_token' => $verificationCode->token, // ← ENVIAR EL TOKEN
-                    'email' => $user->email
+                    'verification_required' => false, // ← No requiere verificación
+                    'debug_code' => $verificationCode->code, // ← Solo para debug
                 ]
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error enviando correo de verificación', [
-                'user' => $user->email,
+
+            Log::error('Error en registro', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al enviar el correo de verificación. Intenta nuevamente.',
+                'message' => 'Error al registrar usuario',
                 'error' => config('app.debug') ? $e->getMessage() : 'Error interno del servidor'
             ], 500);
         }
