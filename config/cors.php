@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'paths' => ['api/*'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
     'allowed_methods' => ['*'],
 
@@ -12,7 +12,7 @@ return [
     ],
 
     'allowed_origins_patterns' => [
-        '/^https:\/\/.*\.railway\.app$/',
+        '/^https?:\/\/.*\.railway\.app$/',
     ],
 
     'allowed_headers' => ['*'],

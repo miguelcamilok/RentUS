@@ -12,13 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Configurar CORS
+        // CORS está habilitado por defecto en Laravel 11/12
+        // Solo necesitamos asegurarnos de que esté en la lista de middleware global
         $middleware->validateCsrfTokens(except: [
             'api/*',
         ]);
-
-        // Agregar headers CORS globalmente
-        $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
