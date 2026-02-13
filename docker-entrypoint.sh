@@ -9,7 +9,7 @@ a2dismod mpm_event mpm_worker mpm_prefork worker event 2>/dev/null || true
 echo "Enabling mpm_prefork..."
 a2enmod mpm_prefork
 
-# Habilitar módulo headers de Apache (necesario para CORS)
+# Habilitar módulo headers de Apache
 echo "Enabling Apache headers module..."
 a2enmod headers
 
@@ -17,30 +17,25 @@ a2enmod headers
 echo "Currently enabled MPM modules:"
 ls -la /etc/apache2/mods-enabled/mpm_* 2>/dev/null || echo "No MPM symlinks found"
 
-# Configurar el puerto desde la variable de entorno PORT de Railway
+# Configurar el puerto
 PORT=${PORT:-80}
 echo "Configuring Apache to listen on port $PORT..."
 
-# Reemplazar el puerto en ports.conf
 sed -i "s/Listen 80/Listen ${PORT}/" /etc/apache2/ports.conf
-
-# Reemplazar el puerto en los virtualhost
 sed -i "s/<VirtualHost \*:80>/<VirtualHost *:${PORT}>/" /etc/apache2/sites-available/*.conf
 
-# ===== CONFIGURAR CORS EN APACHE (versión corregida) =====
+# ===== CONFIGURAR CORS EN APACHE =====
 echo "Configuring CORS headers..."
 cat >> /etc/apache2/apache2.conf << 'EOF'
 
 # CORS Configuration
 <IfModule mod_headers.c>
-    # Eliminar cualquier header CORS existente primero
     Header unset Access-Control-Allow-Origin
     Header unset Access-Control-Allow-Methods
     Header unset Access-Control-Allow-Headers
     Header unset Access-Control-Allow-Credentials
     Header unset Access-Control-Max-Age
 
-    # Permitir todos los orígenes de Railway y localhost
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
     Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept"
@@ -49,7 +44,24 @@ cat >> /etc/apache2/apache2.conf << 'EOF'
 </IfModule>
 EOF
 
-# Esperar a que la base de datos esté lista
+# ===== CREAR DIRECTORIOS DE LOGS Y CONFIGURAR PERMISOS =====
+echo "Setting up Laravel storage directories..."
+mkdir -p /var/www/html/storage/logs
+mkdir -p /var/www/html/storage/framework/cache
+mkdir -p /var/www/html/storage/framework/sessions
+mkdir -p /var/www/html/storage/framework/views
+mkdir -p /var/www/html/bootstrap/cache
+
+# Configurar permisos ANTES de crear el enlace simbólico
+chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+
+# Configurar logs de Laravel para stdout
+touch /var/www/html/storage/logs/laravel.log
+chown www-data:www-data /var/www/html/storage/logs/laravel.log
+chmod 666 /var/www/html/storage/logs/laravel.log
+
+# Esperar base de datos
 echo "Waiting for database connection..."
 timeout=30
 counter=0
@@ -78,11 +90,6 @@ echo "Optimizing for production..."
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
-
-# Configurar logs
-rm -f /var/www/html/storage/logs/laravel.log
-ln -sf /dev/stdout /var/www/html/storage/logs/laravel.log
-chmod -R 777 /var/www/html/storage/logs
 
 # Iniciar Apache
 echo "Starting Apache on port $PORT..."
