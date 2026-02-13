@@ -12,10 +12,6 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# **SOLUCIÓN MPM: Deshabilitar TODAS las variantes posibles de MPM**
-RUN a2dismod mpm_event mpm_worker mpm_prefork worker event || true \
-    && a2enmod mpm_prefork
-
 # Copiar Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
@@ -41,8 +37,13 @@ RUN a2enmod rewrite
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Copiar script de entrada personalizado
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Exponer puerto
 EXPOSE 80
 
-# Comando de inicio
-CMD ["apache2-foreground"]
+# Usar el entrypoint personalizado
+ENTRYPOINT ["docker-entrypoint.sh"]
+
