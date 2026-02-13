@@ -53,6 +53,19 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
+# ===== IMPORTANTE: Configurar logs de Laravel =====
+# Crear enlace simbólico para que los logs vayan a stdout/stderr
+rm -f /var/www/html/storage/logs/laravel.log
+ln -sf /dev/stdout /var/www/html/storage/logs/laravel.log
+
+# Configurar permisos
+chmod -R 777 /var/www/html/storage/logs
+
+# Configurar Apache para mostrar errores de PHP
+echo "php_flag display_errors on" >> /etc/apache2/apache2.conf
+echo "php_flag display_startup_errors on" >> /etc/apache2/apache2.conf
+echo "php_value error_reporting E_ALL" >> /etc/apache2/apache2.conf
+
 # Ejecutar el comando original de Apache
 echo "Starting Apache on port $PORT..."
 exec apache2-foreground
