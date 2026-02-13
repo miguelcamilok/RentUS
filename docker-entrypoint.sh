@@ -27,30 +27,25 @@ sed -i "s/Listen 80/Listen ${PORT}/" /etc/apache2/ports.conf
 # Reemplazar el puerto en los virtualhost
 sed -i "s/<VirtualHost \*:80>/<VirtualHost *:${PORT}>/" /etc/apache2/sites-available/*.conf
 
-# ===== AGREGAR HEADERS CORS DIRECTAMENTE EN APACHE =====
+# ===== CONFIGURAR CORS EN APACHE (versión corregida) =====
 echo "Configuring CORS headers..."
 cat >> /etc/apache2/apache2.conf << 'EOF'
 
 # CORS Configuration
 <IfModule mod_headers.c>
-    # Permitir origen específico
-    SetEnvIf Origin "^https://frontend-rentus-pruebas-production\.up\.railway\.app$" ORIGIN_ALLOWED=$0
-    SetEnvIf Origin "^https://.*\.railway\.app$" ORIGIN_ALLOWED=$0
-    SetEnvIf Origin "^http://localhost:5173$" ORIGIN_ALLOWED=$0
-    SetEnvIf Origin "^http://localhost:4173$" ORIGIN_ALLOWED=$0
+    # Eliminar cualquier header CORS existente primero
+    Header unset Access-Control-Allow-Origin
+    Header unset Access-Control-Allow-Methods
+    Header unset Access-Control-Allow-Headers
+    Header unset Access-Control-Allow-Credentials
+    Header unset Access-Control-Max-Age
 
-    Header always set Access-Control-Allow-Origin "%{ORIGIN_ALLOWED}e" env=ORIGIN_ALLOWED
-    Header always set Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept"
-    Header always set Access-Control-Allow-Credentials "true"
-    Header always set Access-Control-Max-Age "3600"
-</IfModule>
-
-# Responder inmediatamente a peticiones OPTIONS
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteCond %{REQUEST_METHOD} OPTIONS
-    RewriteRule ^(.*)$ $1 [R=204,L]
+    # Permitir todos los orígenes de Railway y localhost
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept"
+    Header set Access-Control-Allow-Credentials "true"
+    Header set Access-Control-Max-Age "3600"
 </IfModule>
 EOF
 
@@ -64,7 +59,7 @@ until php artisan migrate:status > /dev/null 2>&1 || [ $counter -eq $timeout ]; 
   counter=$((counter + 2))
 done
 
-# Ejecutar migraciones si es necesario
+# Ejecutar migraciones
 if [ $counter -lt $timeout ]; then
   echo "Running migrations..."
   php artisan migrate --force || echo "Migrations failed or not needed"
@@ -72,23 +67,23 @@ else
   echo "Warning: Could not connect to database, skipping migrations"
 fi
 
-# Limpiar cache de configuración
+# Limpiar cache
 echo "Clearing caches..."
 php artisan config:clear
 php artisan cache:clear
 php artisan view:clear
 
-# Optimizar para producción
+# Optimizar
 echo "Optimizing for production..."
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
-# Configurar logs de Laravel
+# Configurar logs
 rm -f /var/www/html/storage/logs/laravel.log
 ln -sf /dev/stdout /var/www/html/storage/logs/laravel.log
 chmod -R 777 /var/www/html/storage/logs
 
-# Ejecutar el comando original de Apache
+# Iniciar Apache
 echo "Starting Apache on port $PORT..."
 exec apache2-foreground
