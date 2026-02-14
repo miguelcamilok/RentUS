@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Artisan;
 
 class DebugController extends Controller
 {
@@ -73,12 +74,14 @@ class DebugController extends Controller
         ]);
     }
 
-    /**
-     * NUEVO: Endpoint para ver configuración actual de MAIL
-     */
     public function mailConfig()
     {
+        // Verificar si existe cache de config
+        $configCached = file_exists(base_path('bootstrap/cache/config.php'));
+
         return response()->json([
+            'config_cached' => $configCached,
+            'cache_file_exists' => file_exists(base_path('bootstrap/cache/config.php')),
             'env_vars' => [
                 'MAIL_MAILER' => env('MAIL_MAILER'),
                 'MAIL_HOST' => env('MAIL_HOST'),
@@ -89,18 +92,65 @@ class DebugController extends Controller
                 'MAIL_FROM_ADDRESS' => env('MAIL_FROM_ADDRESS'),
                 'MAIL_FROM_NAME' => env('MAIL_FROM_NAME'),
             ],
-            'config_cache' => [
-                'mail.mailer' => config('mail.mailer'),
-                'mail.host' => config('mail.host'),
-                'mail.port' => config('mail.port'),
-                'mail.username' => config('mail.username'),
-                'mail.password' => config('mail.password') ? '***' . substr(config('mail.password'), -4) : null,
-                'mail.encryption' => config('mail.encryption'),
+            'config_values' => [
+                'mail.default' => config('mail.default'),
+                'mail.mailers.smtp.transport' => config('mail.mailers.smtp.transport'),
+                'mail.mailers.smtp.host' => config('mail.mailers.smtp.host'),
+                'mail.mailers.smtp.port' => config('mail.mailers.smtp.port'),
+                'mail.mailers.smtp.username' => config('mail.mailers.smtp.username'),
+                'mail.mailers.smtp.password' => config('mail.mailers.smtp.password') ? '***' . substr(config('mail.mailers.smtp.password'), -4) : null,
+                'mail.mailers.smtp.encryption' => config('mail.mailers.smtp.encryption'),
                 'mail.from.address' => config('mail.from.address'),
                 'mail.from.name' => config('mail.from.name'),
             ],
-            'mail_default_config' => config('mail.default'),
-            'all_mail_mailers' => config('mail.mailers'),
         ]);
+    }
+
+    /**
+     * 🔧 NUEVO: Forzar recache de configuración
+     */
+    public function recacheConfig()
+    {
+        try {
+            Artisan::call('config:clear');
+            Artisan::call('config:cache');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Configuración recacheada',
+                'config_clear_output' => Artisan::output(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * 🧪 NUEVO: Test de envío de correo
+     */
+    public function testMail()
+    {
+        try {
+            $testEmail = env('MAIL_USERNAME');
+
+            \Illuminate\Support\Facades\Mail::raw('Test email from Railway deployment', function ($message) use ($testEmail) {
+                $message->to($testEmail)
+                    ->subject('Test Email - ' . now());
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Correo de prueba enviado a ' . $testEmail,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ], 500);
+        }
     }
 }

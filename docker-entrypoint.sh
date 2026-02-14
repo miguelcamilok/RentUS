@@ -73,6 +73,14 @@ touch /var/www/html/storage/logs/laravel.log
 chown www-data:www-data /var/www/html/storage/logs/laravel.log
 chmod 666 /var/www/html/storage/logs/laravel.log
 
+# ===== VERIFICAR VARIABLES DE ENTORNO =====
+echo "📧 Verificando variables de correo..."
+echo "MAIL_MAILER: ${MAIL_MAILER}"
+echo "MAIL_HOST: ${MAIL_HOST}"
+echo "MAIL_PORT: ${MAIL_PORT}"
+echo "MAIL_USERNAME: ${MAIL_USERNAME}"
+echo "MAIL_ENCRYPTION: ${MAIL_ENCRYPTION}"
+
 # Esperar base de datos
 echo "Waiting for database connection..."
 timeout=30
@@ -91,7 +99,7 @@ else
   echo "Warning: Could not connect to database, skipping migrations"
 fi
 
-# Limpiar cache de Laravel (SIN cachear config)
+# ===== LIMPIAR Y CACHEAR CONFIGURACIÓN =====
 echo "Clearing Laravel caches..."
 php artisan config:clear
 php artisan cache:clear
@@ -99,8 +107,12 @@ php artisan view:clear
 php artisan event:clear 2>/dev/null || true
 php artisan route:clear
 
-# SOLO cachear rutas y vistas
-echo "Optimizing..."
+# ✅ CACHEAR CONFIG PARA QUE LEA LAS ENV VARS
+echo "🔧 Caching configuration..."
+php artisan config:cache
+
+# Cachear rutas y vistas
+echo "Optimizing routes and views..."
 php artisan route:cache
 php artisan view:cache
 
@@ -110,6 +122,17 @@ php artisan queue:clear 2>/dev/null || true
 php artisan queue:flush 2>/dev/null || true
 php artisan tinker --execute="DB::table('jobs')->truncate();" 2>/dev/null || true
 php artisan tinker --execute="DB::table('failed_jobs')->truncate();" 2>/dev/null || true
+
+# ===== VERIFICAR CONFIGURACIÓN DE MAIL =====
+echo "🔍 Verificando configuración de Mail..."
+php artisan tinker --execute="
+echo 'MAIL_MAILER: ' . config('mail.default') . PHP_EOL;
+echo 'MAIL_HOST: ' . config('mail.mailers.smtp.host') . PHP_EOL;
+echo 'MAIL_PORT: ' . config('mail.mailers.smtp.port') . PHP_EOL;
+echo 'MAIL_USERNAME: ' . config('mail.mailers.smtp.username') . PHP_EOL;
+echo 'MAIL_ENCRYPTION: ' . config('mail.mailers.smtp.encryption') . PHP_EOL;
+echo 'MAIL_FROM: ' . config('mail.from.address') . PHP_EOL;
+"
 
 # Iniciar Apache en segundo plano
 echo "Starting Apache on port $PORT..."
