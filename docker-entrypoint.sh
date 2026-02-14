@@ -79,15 +79,14 @@ else
   echo "Warning: Could not connect to database, skipping migrations"
 fi
 
-# Limpiar cache
+# Limpiar cache (IMPORTANTE: No cachear config para que lea las variables de entorno)
 echo "Clearing caches..."
 php artisan config:clear
 php artisan cache:clear
 php artisan view:clear
 
-# Optimizar
+# SOLO cachear rutas y vistas, NO config
 echo "Optimizing for production..."
-php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
