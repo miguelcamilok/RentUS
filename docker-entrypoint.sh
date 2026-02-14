@@ -99,5 +99,17 @@ apache2-foreground &
 echo "Starting queue worker..."
 php artisan queue:work --tries=3 --timeout=30 --sleep=3 --max-jobs=1000 &
 
+# Limpiar jobs fallidos al iniciar
+echo "Flushing failed jobs..."
+php artisan queue:flush 2>/dev/null || true
+
+# Iniciar Apache en segundo plano
+echo "Starting Apache on port $PORT..."
+apache2-foreground &
+
+# Iniciar worker de cola para procesar jobs
+echo "Starting queue worker..."
+php artisan queue:work --tries=3 --timeout=60 --sleep=3 --max-jobs=1000 &
+
 # Mantener el contenedor corriendo
 wait

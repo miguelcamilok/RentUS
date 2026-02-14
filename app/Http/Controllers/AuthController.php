@@ -94,7 +94,7 @@ class AuthController extends Controller
             );
 
             // ===== ENVIAR CORREO EN SEGUNDO PLANO =====
-            SendVerificationEmail::dispatch($user, $verificationCode);
+            SendVerificationEmail::dispatch($user->id, $verificationCode->id);
 
             Log::info('📧 Correo de verificación en cola', [
                 'user_id' => $user->id,
