@@ -16,8 +16,8 @@ class SendVerificationEmail implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $tries = 3; // Intentar 3 veces si falla
-    public $timeout = 30; // Timeout de 30 segundos
+    public $tries = 3;
+    public $timeout = 60; // Aumentar a 60 segundos
 
     /**
      * Create a new job instance.
@@ -32,27 +32,50 @@ class SendVerificationEmail implements ShouldQueue
      */
     public function handle(MailService $mailService): void
     {
+        Log::info('🚀 Iniciando envío de correo', [
+            'user_id' => $this->user->id,
+            'email' => $this->user->email,
+            'code' => $this->verificationCode->code,
+        ]);
+
         try {
             $emailSent = $mailService->sendConfirmationEmail($this->user, $this->verificationCode);
 
             if ($emailSent) {
-                Log::info('✅ Correo de verificación enviado', [
+                Log::info('✅ Correo de verificación enviado exitosamente', [
                     'user_id' => $this->user->id,
                     'email' => $this->user->email,
                 ]);
             } else {
-                Log::error('❌ Fallo al enviar correo de verificación', [
+                Log::error('❌ sendConfirmationEmail retornó false', [
                     'user_id' => $this->user->id,
                     'email' => $this->user->email,
                 ]);
+                throw new \Exception('Mail service returned false');
             }
         } catch (\Exception $e) {
-            Log::error('❌ Excepción al enviar correo', [
+            Log::error('❌ EXCEPCIÓN al enviar correo', [
                 'user_id' => $this->user->id,
+                'email' => $this->user->email,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            throw $e; // Re-lanzar para que Laravel reintente
+
+            // Re-lanzar para que Laravel reintente
+            throw $e;
         }
+    }
+
+    /**
+     * Handle a job failure.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        Log::error('💀 Job FALLÓ después de todos los intentos', [
+            'user_id' => $this->user->id,
+            'email' => $this->user->email,
+            'error' => $exception->getMessage(),
+            'trace' => $exception->getTraceAsString(),
+        ]);
     }
 }

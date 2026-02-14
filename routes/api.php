@@ -20,7 +20,7 @@ use App\Http\Controllers\ReportController;
 Route::prefix('auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('verify-email', [AuthController::class, 'verifyEmail']);
-    
+    Route::post('verify-email-check', [AuthController::class, 'checkToken']);
     Route::post('resend-code', [AuthController::class, 'resendVerificationCode']);
     Route::post('login', [AuthController::class, 'login']);
     Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
