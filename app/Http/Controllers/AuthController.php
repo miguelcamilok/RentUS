@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use App\Jobs\SendVerificationEmail;
 
 class AuthController extends Controller
 {
@@ -33,6 +34,9 @@ class AuthController extends Controller
     /**
      * Registrar nuevo usuario
      */
+    /**
+     * Registrar nuevo usuario
+     */
     public function register(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -43,7 +47,20 @@ class AuthController extends Controller
             'address' => 'required|string|max:255|min:5',
             'id_documento' => 'required|string|max:50|unique:users,id_documento',
         ], [
-            // ... mensajes de validación ...
+            'name.required' => 'El nombre es obligatorio',
+            'name.min' => 'El nombre debe tener al menos 2 caracteres',
+            'phone.required' => 'El teléfono es obligatorio',
+            'phone.regex' => 'El teléfono debe contener entre 10 y 20 dígitos',
+            'phone.unique' => 'Este teléfono ya está registrado',
+            'email.required' => 'El correo electrónico es obligatorio',
+            'email.email' => 'Debe ingresar un correo válido',
+            'email.unique' => 'Este correo ya está registrado',
+            'password.required' => 'La contraseña es obligatoria',
+            'password.min' => 'La contraseña debe tener al menos 8 caracteres',
+            'address.required' => 'La dirección es obligatoria',
+            'address.min' => 'La dirección debe tener al menos 5 caracteres',
+            'id_documento.required' => 'El documento de identidad es obligatorio',
+            'id_documento.unique' => 'Este documento ya está registrado',
         ]);
 
         if ($validator->fails()) {
@@ -56,7 +73,7 @@ class AuthController extends Controller
         DB::beginTransaction();
 
         try {
-            // Crear usuario INACTIVO hasta verificar correo
+            // Crear usuario con estado pendiente y rol por defecto 'user'
             $user = User::create([
                 'name' => $request->name,
                 'email' => strtolower(trim($request->email)),
@@ -65,8 +82,8 @@ class AuthController extends Controller
                 'password_hash' => Hash::make($request->password),
                 'address' => $request->address,
                 'id_documento' => $request->id_documento,
-                'status' => 'inactive', // ← CAMBIAR: Usuario inactivo hasta verificar
-                'verification_status' => 'pending', // ← CAMBIAR: Pendiente de verificación
+                'status' => 'inactive', // Usuario inactivo hasta verificar correo
+                'verification_status' => 'pending',
                 'role' => 'user',
             ]);
 
@@ -76,20 +93,19 @@ class AuthController extends Controller
                 'email_verification'
             );
 
-            // ===== ACTIVAR ENVÍO DE CORREO =====
-            $emailSent = $this->mailService->sendConfirmationEmail($user, $verificationCode);
+            // ===== ENVIAR CORREO EN SEGUNDO PLANO =====
+            SendVerificationEmail::dispatch($user, $verificationCode);
 
-            if (!$emailSent) {
-                DB::rollBack();
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Error al enviar el correo de verificación. Intenta nuevamente.'
-                ], 500);
-            }
+            Log::info('📧 Correo de verificación en cola', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'code' => $verificationCode->code,
+                'token' => $verificationCode->token,
+            ]);
 
             DB::commit();
 
-            // NO devolver token, requiere verificación
+            // Responder INMEDIATAMENTE sin esperar el correo
             return response()->json([
                 'success' => true,
                 'message' => 'Usuario registrado exitosamente. Por favor, verifica tu correo electrónico.',

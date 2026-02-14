@@ -52,11 +52,11 @@ mkdir -p /var/www/html/storage/framework/sessions
 mkdir -p /var/www/html/storage/framework/views
 mkdir -p /var/www/html/bootstrap/cache
 
-# Configurar permisos ANTES de crear el enlace simbólico
+# Configurar permisos
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Configurar logs de Laravel para stdout
+# Configurar logs de Laravel
 touch /var/www/html/storage/logs/laravel.log
 chown www-data:www-data /var/www/html/storage/logs/laravel.log
 chmod 666 /var/www/html/storage/logs/laravel.log
@@ -91,7 +91,13 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
-# Iniciar Apache
+# Iniciar Apache en segundo plano
 echo "Starting Apache on port $PORT..."
-exec apache2-foreground
+apache2-foreground &
 
+# Iniciar worker de cola para procesar jobs
+echo "Starting queue worker..."
+php artisan queue:work --tries=3 --timeout=30 --sleep=3 --max-jobs=1000 &
+
+# Mantener el contenedor corriendo
+wait
