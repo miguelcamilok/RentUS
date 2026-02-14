@@ -56,7 +56,7 @@ class AuthController extends Controller
         DB::beginTransaction();
 
         try {
-            // Crear usuario con estado pendiente y rol por defecto 'user'
+            // Crear usuario INACTIVO hasta verificar correo
             $user = User::create([
                 'name' => $request->name,
                 'email' => strtolower(trim($request->email)),
@@ -65,58 +65,45 @@ class AuthController extends Controller
                 'password_hash' => Hash::make($request->password),
                 'address' => $request->address,
                 'id_documento' => $request->id_documento,
-                'status' => 'active', // ← TEMPORAL: Ya activado
-                'verification_status' => 'verified', // ← TEMPORAL: Ya verificado
-                'email_verified_at' => now(), // ← TEMPORAL: Ya verificado
+                'status' => 'inactive', // ← CAMBIAR: Usuario inactivo hasta verificar
+                'verification_status' => 'pending', // ← CAMBIAR: Pendiente de verificación
                 'role' => 'user',
             ]);
 
-            // Generar código de verificación (aunque no se envíe)
+            // Generar código de verificación
             $verificationCode = $this->verificationService->generateCode(
                 $user->email,
                 'email_verification'
             );
 
-            // ===== TEMPORAL: COMENTAR EL ENVÍO DE CORREO =====
-            /*
-        // Enviar correo de verificación
-        $emailSent = $this->mailService->sendConfirmationEmail($user, $verificationCode);
+            // ===== ACTIVAR ENVÍO DE CORREO =====
+            $emailSent = $this->mailService->sendConfirmationEmail($user, $verificationCode);
 
-        if (!$emailSent) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al enviar el correo de verificación.'
-            ], 500);
-        }
-        */
-
-            Log::info('⚠️ MODO DEBUG: Envío de correo deshabilitado', [
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'code' => $verificationCode->code,
-            ]);
+            if (!$emailSent) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al enviar el correo de verificación. Intenta nuevamente.'
+                ], 500);
+            }
 
             DB::commit();
 
-            // ===== TEMPORAL: Login automático sin verificación =====
-            $token = $this->tokenService->generateToken($user, false);
-
+            // NO devolver token, requiere verificación
             return response()->json([
                 'success' => true,
-                'message' => '⚠️ MODO DEBUG: Usuario registrado sin verificación de correo',
-                'token' => $token, // ← Devolver token para login automático
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                    'status' => $user->status,
-                    'verification_status' => $user->verification_status,
-                ],
+                'message' => 'Usuario registrado exitosamente. Por favor, verifica tu correo electrónico.',
                 'data' => [
-                    'verification_required' => false, // ← No requiere verificación
-                    'debug_code' => $verificationCode->code, // ← Solo para debug
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'verification_status' => $user->verification_status,
+                        'role' => $user->role,
+                    ],
+                    'verification_required' => true,
+                    'verification_token' => $verificationCode->token,
+                    'email' => $user->email
                 ]
             ], 201);
         } catch (\Exception $e) {
