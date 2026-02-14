@@ -56,7 +56,19 @@ mkdir -p /var/www/html/bootstrap/cache
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Configurar logs de Laravel
+# ===== LIMPIAR TODO =====
+echo "🧹 Cleaning ALL caches, logs, and old files..."
+
+# Eliminar TODOS los archivos de cache
+rm -rf /var/www/html/bootstrap/cache/*.php
+rm -rf /var/www/html/storage/framework/cache/data/*
+rm -rf /var/www/html/storage/framework/sessions/*
+rm -rf /var/www/html/storage/framework/views/*.php
+
+# Eliminar logs antiguos
+rm -f /var/www/html/storage/logs/*.log
+
+# Crear nuevo archivo de log
 touch /var/www/html/storage/logs/laravel.log
 chown www-data:www-data /var/www/html/storage/logs/laravel.log
 chmod 666 /var/www/html/storage/logs/laravel.log
@@ -79,23 +91,23 @@ else
   echo "Warning: Could not connect to database, skipping migrations"
 fi
 
-# Limpiar cache (IMPORTANTE: No cachear config para que lea las variables de entorno)
-echo "Clearing caches..."
+# Limpiar cache de Laravel (SIN cachear config)
+echo "Clearing Laravel caches..."
 php artisan config:clear
 php artisan cache:clear
 php artisan view:clear
+php artisan event:clear 2>/dev/null || true
+php artisan route:clear
 
-# SOLO cachear rutas y vistas, NO config
-echo "Optimizing for production..."
+# SOLO cachear rutas y vistas
+echo "Optimizing..."
 php artisan route:cache
 php artisan view:cache
 
-# ===== LIMPIAR COMPLETAMENTE LA COLA =====
-echo "Clearing all queued jobs and failed jobs..."
+# Limpiar cola
+echo "Clearing queue..."
 php artisan queue:clear 2>/dev/null || true
 php artisan queue:flush 2>/dev/null || true
-
-# Limpiar también la tabla jobs directamente
 php artisan tinker --execute="DB::table('jobs')->truncate();" 2>/dev/null || true
 php artisan tinker --execute="DB::table('failed_jobs')->truncate();" 2>/dev/null || true
 
@@ -103,7 +115,7 @@ php artisan tinker --execute="DB::table('failed_jobs')->truncate();" 2>/dev/null
 echo "Starting Apache on port $PORT..."
 apache2-foreground &
 
-# Iniciar worker de cola para procesar jobs
+# Iniciar worker de cola
 echo "Starting queue worker..."
 php artisan queue:work --tries=3 --timeout=60 --sleep=3 --max-jobs=1000 &
 

@@ -41,7 +41,7 @@ class DebugController extends Controller
         $file->seek(PHP_INT_MAX);
         $lastLine = $file->key();
 
-        $iterations = min($lastLine, 200); // Últimas 200 líneas
+        $iterations = min($lastLine, 200);
 
         for ($i = 0; $i < $iterations; $i++) {
             $file->seek($lastLine - $i);
@@ -70,6 +70,37 @@ class DebugController extends Controller
                     'created_at' => date('Y-m-d H:i:s', $job->created_at),
                 ];
             })
+        ]);
+    }
+
+    /**
+     * NUEVO: Endpoint para ver configuración actual de MAIL
+     */
+    public function mailConfig()
+    {
+        return response()->json([
+            'env_vars' => [
+                'MAIL_MAILER' => env('MAIL_MAILER'),
+                'MAIL_HOST' => env('MAIL_HOST'),
+                'MAIL_PORT' => env('MAIL_PORT'),
+                'MAIL_USERNAME' => env('MAIL_USERNAME'),
+                'MAIL_PASSWORD' => env('MAIL_PASSWORD') ? '***' . substr(env('MAIL_PASSWORD'), -4) : null,
+                'MAIL_ENCRYPTION' => env('MAIL_ENCRYPTION'),
+                'MAIL_FROM_ADDRESS' => env('MAIL_FROM_ADDRESS'),
+                'MAIL_FROM_NAME' => env('MAIL_FROM_NAME'),
+            ],
+            'config_cache' => [
+                'mail.mailer' => config('mail.mailer'),
+                'mail.host' => config('mail.host'),
+                'mail.port' => config('mail.port'),
+                'mail.username' => config('mail.username'),
+                'mail.password' => config('mail.password') ? '***' . substr(config('mail.password'), -4) : null,
+                'mail.encryption' => config('mail.encryption'),
+                'mail.from.address' => config('mail.from.address'),
+                'mail.from.name' => config('mail.from.name'),
+            ],
+            'mail_default_config' => config('mail.default'),
+            'all_mail_mailers' => config('mail.mailers'),
         ]);
     }
 }

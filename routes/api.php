@@ -37,10 +37,11 @@ Route::get('users', [UserController::class, 'index']);
 Route::post('properties/{property}/view', [PropertyController::class, 'incrementViews']);
 Route::get('dashboard/recent-activity', [AdminDashboardController::class, 'getRecentActivity']);
 
-// TEMPORAL - Solo para debugging (agregar al final del archivo)
+// TEMPORAL - Debug endpoints
 Route::get('/debug/failed-jobs', [App\Http\Controllers\DebugController::class, 'failedJobs']);
 Route::get('/debug/logs', [App\Http\Controllers\DebugController::class, 'latestLogs']);
 Route::get('/debug/queue-jobs', [App\Http\Controllers\DebugController::class, 'queueJobs']);
+Route::get('/debug/mail-config', [App\Http\Controllers\DebugController::class, 'mailConfig']); // NUEVO
 
 // ============================================
 // RUTAS PROTEGIDAS (requieren autenticación)
