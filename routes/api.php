@@ -45,6 +45,9 @@ Route::get('/debug/mail-config', [App\Http\Controllers\DebugController::class, '
 Route::post('/debug/recache-config', [App\Http\Controllers\DebugController::class, 'recacheConfig']); // NUEVO
 Route::post('/debug/test-mail', [App\Http\Controllers\DebugController::class, 'testMail']); // NUEVO
 
+Route::post('/debug/test-mail-send', [App\Http\Controllers\MailTestController::class, 'testMailSend']);
+Route::get('/debug/test-smtp-connection', [App\Http\Controllers\MailTestController::class, 'testSmtpConnection']);
+
 // ============================================
 // RUTAS PROTEGIDAS (requieren autenticación)
 // ============================================
