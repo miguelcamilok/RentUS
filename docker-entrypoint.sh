@@ -91,17 +91,14 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
-# Iniciar Apache en segundo plano
-echo "Starting Apache on port $PORT..."
-apache2-foreground &
-
-# Iniciar worker de cola para procesar jobs
-echo "Starting queue worker..."
-php artisan queue:work --tries=3 --timeout=30 --sleep=3 --max-jobs=1000 &
-
-# Limpiar jobs fallidos al iniciar
-echo "Flushing failed jobs..."
+# ===== LIMPIAR COMPLETAMENTE LA COLA =====
+echo "Clearing all queued jobs and failed jobs..."
+php artisan queue:clear 2>/dev/null || true
 php artisan queue:flush 2>/dev/null || true
+
+# Limpiar también la tabla jobs directamente
+php artisan tinker --execute="DB::table('jobs')->truncate();" 2>/dev/null || true
+php artisan tinker --execute="DB::table('failed_jobs')->truncate();" 2>/dev/null || true
 
 # Iniciar Apache en segundo plano
 echo "Starting Apache on port $PORT..."
